@@ -1,3 +1,13 @@
+## [0.0.3] - 2025-10-01
+
+### Changes
+- chore: test actions
+
+### Commit Details
+- **Version bump**: patch
+- **Build date**: 2025-10-01
+- **Commit**: e451bca
+
 ## [0.0.2] - 2025-10-01
 
 ### Changes
