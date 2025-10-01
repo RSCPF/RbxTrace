@@ -1,3 +1,22 @@
+## [0.1.0] - 2025-10-01
+
+### Changes
+- feat: reset back to 0.0.1
+- chore: reset version back to 0.0.1 and clean up automated releases [skip ci]
+- fix: update project name in README and bump version to 0.1.0 in wally.toml
+- chore: bump version to 0.0.4 [skip ci]
+- fix: clean up build artifacts and update exclusion list in wally.toml
+- chore: bump version to 0.0.3 [skip ci]
+- chore: test actions
+- chore: bump version to 0.0.2 [skip ci]
+- fix: delete rojo installer
+- fix: update rojo to match default.project.json
+
+### Commit Details
+- **Version bump**: minor
+- **Build date**: 2025-10-01
+- **Commit**: a488475
+
 # Changelog
 
 All notable changes to RbxTrace will be documented in this file.
