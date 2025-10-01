@@ -1,3 +1,13 @@
+## [0.0.2] - 2025-10-01
+
+### Changes
+
+
+### Commit Details
+- **Version bump**: patch
+- **Build date**: 2025-10-01
+- **Commit**: 77c5dad
+
 # Changelog
 
 All notable changes to RbxTrace will be documented in this file.
