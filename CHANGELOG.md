@@ -1,24 +1,44 @@
-## [0.0.4] - 2025-10-01
+# Changelog## [0.0.4] - 2025-10-01
 
-### Changes
+
+
+All notable changes to this project will be documented in this file.### Changes
+
 - fix: clean up build artifacts and update exclusion list in wally.toml
 
-### Commit Details
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).### Commit Details
+
 - **Version bump**: patch
-- **Build date**: 2025-10-01
+
+## [Unreleased]- **Build date**: 2025-10-01
+
 - **Commit**: 01d0451
 
-## [0.0.3] - 2025-10-01
+### Added
 
-### Changes
-- chore: test actions
+- Initial release of RbxTrace logging system## [0.0.3] - 2025-10-01
 
-### Commit Details
-- **Version bump**: patch
-- **Build date**: 2025-10-01
-- **Commit**: e451bca
+- Comprehensive logging with 6 levels (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
 
-## [0.0.2] - 2025-10-01
+- Real-time GUI monitoring### Changes
+
+- DataStore persistence- chore: test actions
+
+- Webhook integration
+
+- Client-Server communication via Red### Commit Details
+
+- Performance monitoring utilities- **Version bump**: patch
+
+- Group rank authentication for dev GUI- **Build date**: 2025-10-01
+
+- Rate limiting and memory management- **Commit**: e451bca
+
+- Export functionality (Pastebin, JSON, CSV, text)
+
+- Search and filtering capabilities## [0.0.2] - 2025-10-01
 
 ### Changes
 
