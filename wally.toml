@@ -5,8 +5,7 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "A comprehensive, production-ready logging system for Roblox games with advanced features like real-time GUI monitoring, DataStore persistence, webhook alerts, and intelligent filtering."
 license = "MIT"
-include = ["src", "README.md", "LICENSE", "CHANGELOG.md"]
-exclude = ["examples", ".gitignore", "Packages"]
+exclude = ["examples", "Packages", ".github", "build", "*.zip", ".git", "wally.lock", "default.project.json", ".gitignore"]
 
 [dependencies]
 Red = "red-blox/red@^2.3.2"

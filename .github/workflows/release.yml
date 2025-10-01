@@ -145,6 +145,12 @@ jobs:
         run: |
           wally install
 
+      - name: Clean build artifacts
+        run: |
+          rm -rf build/
+          rm -f *.zip
+          rm -rf .github/
+
       - name: Build project
         run: |
           mkdir -p build
