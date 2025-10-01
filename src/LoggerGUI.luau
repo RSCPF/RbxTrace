@@ -81,7 +81,7 @@ function LoggerGUI.Initialize()
   LoggerGUI.SetupKeybinds()
   LoggerGUI.SetupChatCommands()
 
-  print("LoggerGUI: Developer interface initialized")
+  print("LoggerGUI: Developer interface initialized...")
 end
 
 function LoggerGUI.CreateGUI()
