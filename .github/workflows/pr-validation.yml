@@ -1,0 +1,65 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate PR title
+        run: |
+          pr_title="${{ github.event.pull_request.title }}"
+          echo "PR Title: $pr_title"
+
+          # Check if PR title follows conventional commit format
+          if echo "$pr_title" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|chore|ci)(\(.+\))?: .+"; then
+            echo "✅ PR title follows conventional commit format"
+          else
+            echo "⚠️ PR title should follow conventional commit format"
+            echo "Examples: 'feat: add new logging feature', 'fix: resolve memory leak', 'docs: update README'"
+          fi
+
+      - name: Check for version changes
+        run: |
+          if git diff origin/main...HEAD --name-only | grep -q "wally.toml"; then
+            echo "⚠️ wally.toml was modified in this PR"
+            echo "Version bumps should be handled automatically by the release workflow"
+            echo "Please revert manual version changes unless this is intentional"
+          else
+            echo "✅ No version file changes detected"
+          fi
+
+      - name: Validate file changes
+        run: |
+          changed_files=$(git diff origin/main...HEAD --name-only)
+          echo "Changed files:"
+          echo "$changed_files"
+
+          # Check if only documentation was changed
+          if echo "$changed_files" | grep -qv -E "\.(md|txt)$" && echo "$changed_files" | grep -q -E "\.(md|txt)$"; then
+            echo "📖 This PR includes documentation changes"
+          fi
+
+          # Check for large file additions
+          git diff origin/main...HEAD --stat | while read -r line; do
+            if echo "$line" | grep -qE "\s+[0-9]{3,}\s+"; then
+              echo "⚠️ Large file changes detected: $line"
+            fi
+          done
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          new_todos=$(git diff origin/main...HEAD | grep "^+" | grep -i -E "(TODO|FIXME|HACK)" | head -10)
+          if [ -n "$new_todos" ]; then
+            echo "⚠️ New TODO/FIXME comments found:"
+            echo "$new_todos"
+            echo "Consider addressing these before merging"
+          else
+            echo "✅ No new TODO/FIXME comments found"
+          fi

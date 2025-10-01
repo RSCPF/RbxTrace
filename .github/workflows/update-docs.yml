@@ -1,0 +1,57 @@
+name: Update Documentation
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update version references in documentation
+        run: |
+          # Get the release tag (remove 'v' prefix)
+          version="${{ github.event.release.tag_name }}"
+          version_number="${version#v}"
+
+          echo "Updating documentation for version: $version_number"
+
+          # Update any version references in README if they exist
+          if grep -q "rbxtrace@" README.md; then
+            sed -i "s/rbxtrace@[0-9]\+\.[0-9]\+\.[0-9]\+/rbxtrace@$version_number/g" README.md
+            echo "Updated Wally version references in README.md"
+          fi
+
+          # Update examples if they contain version references
+          if [ -d "examples" ]; then
+            find examples -name "*.luau" -type f -exec grep -l "rbxtrace" {} \; | while read -r file; do
+              if grep -q "rbxtrace@" "$file"; then
+                sed -i "s/rbxtrace@[0-9]\+\.[0-9]\+\.[0-9]\+/rbxtrace@$version_number/g" "$file"
+                echo "Updated version references in $file"
+              fi
+            done
+          fi
+
+      - name: Commit documentation updates
+        run: |
+          if git diff --quiet; then
+            echo "No documentation updates needed"
+          else
+            git add .
+            git commit -m "docs: update version references to ${{ github.event.release.tag_name }} [skip ci]"
+            git push origin main
+            echo "Documentation updated successfully"
+          fi

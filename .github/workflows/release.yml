@@ -1,0 +1,253 @@
+name: Release and Publish
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'wally.toml'
+      - 'default.project.json'
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  ROBLOX_STUDIO_DIR: ${{ github.workspace }}/roblox-studio
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      has-changes: ${{ steps.check.outputs.has-changes }}
+      current-version: ${{ steps.version.outputs.current-version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for source changes
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Manual release triggered"
+          else
+            # Check if there are changes in source files since last commit
+            if git diff --name-only HEAD~1 HEAD | grep -E "(src/|wally\.toml|default\.project\.json)"; then
+              echo "has-changes=true" >> $GITHUB_OUTPUT
+              echo "Source changes detected"
+            else
+              echo "has-changes=false" >> $GITHUB_OUTPUT
+              echo "No source changes detected"
+            fi
+          fi
+
+      - name: Get current version
+        id: version
+        run: |
+          current_version=$(grep '^version = ' wally.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "current-version=$current_version" >> $GITHUB_OUTPUT
+          echo "Current version: $current_version"
+
+  release:
+    needs: check-changes
+    if: needs.check-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install Wally
+        run: |
+          wget -O wally https://github.com/UpliftGames/wally/releases/latest/download/wally-0.3.2-linux-x86_64
+          chmod +x wally
+          sudo mv wally /usr/local/bin/
+
+      - name: Install Rojo
+        run: |
+          wget -O rojo.zip https://github.com/rojo-rbx/rojo/releases/latest/download/rojo-7.4.4-linux-x86_64.zip
+          unzip rojo.zip
+          chmod +x rojo
+          sudo mv rojo /usr/local/bin/
+
+      - name: Calculate new version
+        id: version
+        run: |
+          current_version="${{ needs.check-changes.outputs.current-version }}"
+          echo "Current version: $current_version"
+          
+          # Extract version parts
+          IFS='.' read -r major minor patch <<< "$current_version"
+          
+          # Determine version bump type
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            bump_type="${{ github.event.inputs.version_bump }}"
+          else
+            # Auto-determine bump type based on commit messages
+            commit_messages=$(git log --pretty=format:"%s" HEAD~1..HEAD)
+            if echo "$commit_messages" | grep -qi "breaking\|major"; then
+              bump_type="major"
+            elif echo "$commit_messages" | grep -qi "feat\|feature\|minor"; then
+              bump_type="minor"
+            else
+              bump_type="patch"
+            fi
+          fi
+          
+          echo "Bump type: $bump_type"
+          
+          # Calculate new version
+          case $bump_type in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="$major.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="$major.$minor.$((patch + 1))"
+              ;;
+          esac
+          
+          echo "new-version=$new_version" >> $GITHUB_OUTPUT
+          echo "bump-type=$bump_type" >> $GITHUB_OUTPUT
+          echo "New version: $new_version"
+
+      - name: Update version in wally.toml
+        run: |
+          new_version="${{ steps.version.outputs.new-version }}"
+          sed -i "s/^version = .*/version = \"$new_version\"/" wally.toml
+          echo "Updated wally.toml to version $new_version"
+
+      - name: Install dependencies
+        run: |
+          wally install
+
+      - name: Build project
+        run: |
+          mkdir -p build
+          rojo build default.project.json --output build/RbxTrace.rbxm
+
+      - name: Generate changelog entry
+        id: changelog
+        run: |
+          new_version="${{ steps.version.outputs.new-version }}"
+          bump_type="${{ steps.version.outputs.bump-type }}"
+          current_date=$(date '+%Y-%m-%d')
+          
+          # Get commit messages since last tag
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$last_tag" ]; then
+            commit_range="$last_tag..HEAD"
+          else
+            commit_range="HEAD~10..HEAD"  # fallback to last 10 commits
+          fi
+          
+          # Generate changelog content
+          changelog_content="## [$new_version] - $current_date
+
+### Changes
+$(git log --pretty=format:"- %s" $commit_range | head -20)
+
+### Commit Details
+- **Version bump**: $bump_type
+- **Build date**: $current_date
+- **Commit**: $(git rev-parse --short HEAD)
+"
+          
+          # Prepend to CHANGELOG.md if it exists, create if not
+          if [ -f CHANGELOG.md ]; then
+            temp_file=$(mktemp)
+            echo "$changelog_content" > "$temp_file"
+            echo "" >> "$temp_file"
+            cat CHANGELOG.md >> "$temp_file"
+            mv "$temp_file" CHANGELOG.md
+          else
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "$changelog_content" >> CHANGELOG.md
+          fi
+          
+          # Set output for release notes
+          {
+            echo "changelog<<EOF"
+            echo "$changelog_content"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Commit version bump
+        run: |
+          new_version="${{ steps.version.outputs.new-version }}"
+          git add wally.toml CHANGELOG.md
+          git commit -m "chore: bump version to $new_version [skip ci]" || echo "No changes to commit"
+          git tag "v$new_version"
+          git push origin main --tags
+
+      - name: Publish to Wally
+        env:
+          WALLY_AUTH_TOKEN: ${{ secrets.WALLY_AUTH_TOKEN }}
+        run: |
+          if [ -n "$WALLY_AUTH_TOKEN" ]; then
+            echo "Publishing to Wally..."
+            wally login --token "$WALLY_AUTH_TOKEN"
+            wally publish
+            echo "Successfully published to Wally!"
+          else
+            echo "WALLY_AUTH_TOKEN not set, skipping Wally publish"
+            echo "To publish to Wally, add your Wally auth token as a repository secret named WALLY_AUTH_TOKEN"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.new-version }}
+          name: RbxTrace v${{ steps.version.outputs.new-version }}
+          body: |
+            # RbxTrace v${{ steps.version.outputs.new-version }}
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Installation
+            
+            ### Wally
+            ```toml
+            [dependencies]
+            RbxTrace = "rscpf/rbxtrace@${{ steps.version.outputs.new-version }}"
+            ```
+            
+            ### Manual Installation
+            Download the `.rbxm` file below and import it into Roblox Studio.
+            
+            ## What's Changed
+            See the changelog above for detailed changes in this release.
+          files: |
+            ./build/RbxTrace.rbxm
+          draft: false
+          prerelease: false
+
+      - name: Output release info
+        run: |
+          echo "🎉 Release v${{ steps.version.outputs.new-version }} created successfully!"
+          echo "📦 Published to Wally: https://wally.run/package/rscpf/rbxtrace"
+          echo "🔗 GitHub Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.new-version }}"

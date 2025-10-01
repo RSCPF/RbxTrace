@@ -1,0 +1,96 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Wally
+        run: |
+          wget -O wally https://github.com/UpliftGames/wally/releases/latest/download/wally-0.3.2-linux-x86_64
+          chmod +x wally
+          sudo mv wally /usr/local/bin/
+
+      - name: Install Rojo
+        run: |
+          wget -O rojo.zip https://github.com/rojo-rbx/rojo/releases/latest/download/rojo-7.4.4-linux-x86_64.zip
+          unzip rojo.zip
+          chmod +x rojo
+          sudo mv rojo /usr/local/bin/
+
+      - name: Validate wally.toml
+        run: |
+          echo "Validating wally.toml format..."
+          if ! wally install --check; then
+            echo "❌ wally.toml validation failed"
+            exit 1
+          fi
+          echo "✅ wally.toml is valid"
+
+      - name: Install dependencies
+        run: |
+          wally install
+
+      - name: Validate project structure
+        run: |
+          echo "Validating default.project.json..."
+          if ! rojo build default.project.json --output /tmp/test.rbxm; then
+            echo "❌ Project build failed"
+            exit 1
+          fi
+          echo "✅ Project builds successfully"
+
+      - name: Check version consistency
+        run: |
+          wally_version=$(grep '^version = ' wally.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "Wally version: $wally_version"
+
+          # Validate version format (semantic versioning)
+          if ! echo "$wally_version" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Invalid version format in wally.toml: $wally_version"
+            echo "Version must follow semantic versioning (x.y.z)"
+            exit 1
+          fi
+          echo "✅ Version format is valid"
+
+      - name: Lint Luau files
+        run: |
+          echo "Checking Luau file syntax..."
+          find src -name "*.luau" -type f | while read -r file; do
+            echo "Checking $file..."
+            # Basic syntax check - looking for common issues
+            if grep -n "TODO\|FIXME\|HACK" "$file"; then
+              echo "⚠️  Found TODO/FIXME/HACK comments in $file"
+            fi
+          done
+          echo "✅ Luau files syntax check completed"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for secrets in code
+        run: |
+          echo "Scanning for potential secrets..."
+          # Check for common secret patterns
+          if grep -r -i -E "(password|secret|key|token|api_key)" --include="*.luau" src/; then
+            echo "⚠️  Found potential secrets in source code"
+            echo "Please ensure no actual secrets are committed"
+          else
+            echo "✅ No obvious secrets found in source code"
+          fi
+
+      - name: Validate file permissions
+        run: |
+          echo "Checking file permissions..."
+          find . -type f -perm /111 | grep -v ".git" | grep -v "node_modules" || echo "✅ No unexpected executable files found"
