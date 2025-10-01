@@ -1,10 +1,11 @@
 [package]
 name = "rscpf/rbxtrace"
-version = "0.0.1"
+version = "0.0.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "A comprehensive, production-ready logging system for Roblox games with advanced features like real-time GUI monitoring, DataStore persistence, webhook alerts, and intelligent filtering."
 license = "MIT"
+authors = ["rsley"]
 exclude = ["examples", "Packages", ".github", "build", "*.zip", ".git", "wally.lock", "default.project.json", ".gitignore"]
 
 [dependencies]
