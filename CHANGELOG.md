@@ -1,3 +1,13 @@
+## [0.0.4] - 2025-10-01
+
+### Changes
+- fix: clean up build artifacts and update exclusion list in wally.toml
+
+### Commit Details
+- **Version bump**: patch
+- **Build date**: 2025-10-01
+- **Commit**: 01d0451
+
 ## [0.0.3] - 2025-10-01
 
 ### Changes
